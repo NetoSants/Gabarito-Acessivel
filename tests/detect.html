@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Teste do detector OMR</title>
+  <style>
+    body { font: 13px/1.4 Consolas, monospace; margin: 0; padding: 12px; }
+    img, canvas { max-width: 46vw; border: 1px solid #999; display: block; }
+    .row { display: flex; gap: 12px; align-items: flex-start; }
+    pre { white-space: pre-wrap; max-height: 80vh; overflow: auto; background: #f4f4f4; padding: 8px; }
+    #status { font-weight: bold; }
+  </style>
+</head>
+<body>
+  <p id="status">carregando...</p>
+  <div class="row">
+    <canvas id="view"></canvas>
+    <pre id="out"></pre>
+  </div>
+  <script src="../src/core/template.js"></script>
+  <script src="../js/detector.js"></script>
+  <script>
+    (function () {
+      var params = new URLSearchParams(location.search);
+      var src = params.get('img') || 'fixtures/scan_photo.jpg';
+      var matrix = window.OMR.exportMatrix(window.OMR.buildTemplate());
+      var dpr = parseInt(params.get('maxdim') || '1500', 10);
+
+      function report(obj) {
+        document.getElementById('out').textContent = JSON.stringify(obj, null, 2);
+        document.title = 'DONE';
+        window.__OMR_RESULT__ = obj;
+        try {
+          fetch('/save?name=detect_result.json', { method: 'POST', body: JSON.stringify(obj) });
+        } catch (e) {}
+      }
+
+      var img = new Image();
+      img.onload = function () {
+        var canvas = document.getElementById('view');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+
+        var res;
+        try {
+          res = window.OMR.detect(canvas, matrix, { maxDim: dpr });
+        } catch (e) {
+          report({ ok: false, reason: 'exception', error: String(e) });
+          return;
+        }
+
+        if (res.ok) {
+          ctx.lineWidth = 2;
+          res.bubbles.forEach(function (b) {
+            ctx.beginPath();
+            ctx.arc(b.x, b.y, Math.max(4, b.r), 0, Math.PI * 2);
+            ctx.strokeStyle = b.marked ? '#e11' : '#0a0';
+            ctx.stroke();
+          });
+          ctx.fillStyle = '#06f';
+          res.anchors.forEach(function (a) {
+            ctx.beginPath();
+            ctx.moveTo(a.x - 14, a.y); ctx.lineTo(a.x + 14, a.y);
+            ctx.moveTo(a.x, a.y - 14); ctx.lineTo(a.x, a.y + 14);
+            ctx.strokeStyle = '#06f'; ctx.stroke();
+          });
+        }
+
+        var summary = {
+          ok: res.ok,
+          reason: res.reason,
+          ppm: res.ppm,
+          grayThreshold: res.grayThreshold,
+          anchors: res.anchors,
+          candidates: res.candidates,
+          prova: res.prova,
+          answers: res.answers ? res.answers.map(function (a) { return [a.q, a.value]; }) : null
+        };
+        report(summary);
+        document.getElementById('status').textContent = res.ok ? 'OK' : ('FALHA: ' + res.reason);
+      };
+      img.onerror = function () { report({ ok: false, reason: 'img_load', src: src }); };
+      img.src = src;
+    })();
+  </script>
+</body>
+</html>

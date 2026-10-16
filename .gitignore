@@ -1,0 +1,35 @@
+# Dependencias
+node_modules/
+
+# Apps Script (clasp) - nao versionar IDs/credenciais de projeto
+.clasp.json
+.claspignore
+*.clasprc.json
+
+# Credenciais e segredos
+*.env
+.env
+*.pem
+credentials.json
+service-account*.json
+token.json
+
+# Saidas temporarias de debug do OMR
+debug/
+out/
+tmp/
+*.debug.png
+*.debug.jpg
+*.overlay.png
+
+# Conteudo nao-publico (dados de exemplo + especificacao interna)
+briefing-tecnico-desenvolvimento-omr-v2.docx
+Turma_EXEMPLO_A/
+
+# Sistema / editores
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.log

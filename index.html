@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gabarito Acessível — OMR no navegador</title>
+  <meta name="description" content="Gerador e leitor OMR de gabaritos (SAEPE/SAEB) que roda 100% no navegador, com câmera ou foto.">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="toolbar">
+    <h1>Gabarito Acessível</h1>
+    <nav class="tabs" role="tablist" aria-label="Modo de uso">
+      <button role="tab" id="tab-generate" aria-controls="view-generate" aria-selected="true" data-view="generate">Gerar folha</button>
+      <button role="tab" id="tab-read" aria-controls="view-read" aria-selected="false" data-view="read">Ler gabarito</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="view-generate" class="view" role="tabpanel" aria-labelledby="tab-generate">
+      <div class="subbar">
+        <button id="btn-print" type="button">Imprimir folha (A4, 100%)</button>
+        <button id="btn-export" type="button" class="primary">Exportar matriz (JSON)</button>
+        <span class="hint">Imprima em escala real — sem “ajustar à página”.</span>
+      </div>
+      <div class="stage" id="stage" aria-label="Pré-visualização da folha de gabarito A4"></div>
+    </section>
+
+    <section id="view-read" class="view" role="tabpanel" aria-labelledby="tab-read" hidden>
+      <div class="subbar">
+        <button id="btn-camera" type="button">Usar câmera</button>
+        <label class="file-btn">
+          Enviar foto
+          <input id="file-input" type="file" accept="image/*">
+        </label>
+        <button id="btn-reset" type="button">Limpar</button>
+        <span class="hint">Fotografe a folha inteira, com as 4 marcas preto no enquadramento.</span>
+      </div>
+
+      <div class="reader">
+        <div class="reader-media">
+          <video id="video" playsinline muted hidden aria-label="Imagem ao vivo da câmera"></video>
+          <button id="btn-snap" type="button" class="primary" hidden>Capturar</button>
+          <canvas id="reader-canvas" hidden aria-label="Resultado da leitura sobre a folha"></canvas>
+          <p id="read-status" class="status" role="status" aria-live="polite">Aguardando uma folha…</p>
+        </div>
+        <div id="read-result" class="reader-result"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/utils.js"></script>
+  <script src="src/core/template.js"></script>
+  <script src="js/detector.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
