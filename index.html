@@ -14,6 +14,13 @@
       <button role="tab" id="tab-generate" aria-controls="view-generate" aria-selected="true" data-view="generate">Gerar folha</button>
       <button role="tab" id="tab-read" aria-controls="view-read" aria-selected="false" data-view="read">Ler gabarito</button>
     </nav>
+    <label class="template-picker">
+      Modelo
+      <select id="template-select">
+        <option value="novo">Novo (com âncoras)</option>
+        <option value="legado">Oficial (Novo_gabarito.pdf)</option>
+      </select>
+    </label>
   </header>
 
   <main>
@@ -34,7 +41,7 @@
           <input id="file-input" type="file" accept="image/*">
         </label>
         <button id="btn-reset" type="button">Limpar</button>
-        <span class="hint">Fotografe a folha inteira, com as 4 marcas preto no enquadramento.</span>
+        <span class="hint">Fotografe a folha inteira. No modelo novo, as 4 marcas de canto precisam estar visíveis.</span>
       </div>
 
       <div class="reader">
@@ -51,6 +58,7 @@
 
   <script src="js/utils.js"></script>
   <script src="src/core/template.js"></script>
+  <script src="src/core/template-legacy.js"></script>
   <script src="js/detector.js"></script>
   <script src="js/app.js"></script>
 </body>

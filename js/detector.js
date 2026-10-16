@@ -6,7 +6,9 @@
     sampleRatio: 0.62,
     densityThreshold: 0.45,
     anchorFillMin: 0.78,
-    anchorAspect: 0.7
+    anchorAspect: 0.7,
+    frameTrim: 0.005,
+    frameAspectTolerance: 0.3
   };
 
   function mergeOpts(o) {
@@ -147,6 +149,54 @@
     return { ok: true, anchors: picked, candidates: cands };
   }
 
+  function darkBounds(dark, w, h, trim) {
+    var colS = new Int32Array(w);
+    var rowS = new Int32Array(h);
+    var total = 0;
+    for (var y = 0; y < h; y++) {
+      var base = y * w;
+      for (var x = 0; x < w; x++) {
+        if (!dark[base + x]) continue;
+        colS[x]++; rowS[y]++; total++;
+      }
+    }
+    if (!total) return null;
+    var cut = Math.max(1, Math.floor(total * trim));
+    var i, acc;
+    var left = 0, right = w - 1, top = 0, bottom = h - 1;
+    for (acc = 0, i = 0; i < w; i++) { acc += colS[i]; if (acc >= cut) { left = i; break; } }
+    for (acc = 0, i = w - 1; i >= 0; i--) { acc += colS[i]; if (acc >= cut) { right = i; break; } }
+    for (acc = 0, i = 0; i < h; i++) { acc += rowS[i]; if (acc >= cut) { top = i; break; } }
+    for (acc = 0, i = h - 1; i >= 0; i--) { acc += rowS[i]; if (acc >= cut) { bottom = i; break; } }
+    return { left: left, top: top, right: right, bottom: bottom, total: total };
+  }
+
+  function findFrameAnchors(dark, w, h, matrix, opts) {
+    var b = darkBounds(dark, w, h, opts.frameTrim);
+    if (!b) return { ok: false, reason: 'moldura_nao_encontrada' };
+    var bw = b.right - b.left;
+    var bh = b.bottom - b.top;
+    if (bw < w * 0.3 || bh < h * 0.3) return { ok: false, reason: 'moldura_nao_encontrada', bounds: b };
+    var frame = matrix.frame || { width: 189.99, height: 252.98 };
+    var expect = frame.width / frame.height;
+    var got = bw / bh;
+    if (Math.abs(got - expect) / expect > opts.frameAspectTolerance) {
+      return { ok: false, reason: 'moldura_proporcao', bounds: b, aspect: got, expected: expect };
+    }
+    return {
+      ok: true,
+      mode: 'frame',
+      bounds: b,
+      pixelsPerMm: (bw / frame.width + bh / frame.height) / 2,
+      anchors: [
+        { id: 'TL', x: b.left, y: b.top, side: 0 },
+        { id: 'TR', x: b.right, y: b.top, side: 0 },
+        { id: 'BL', x: b.left, y: b.bottom, side: 0 },
+        { id: 'BR', x: b.right, y: b.bottom, side: 0 }
+      ]
+    };
+  }
+
   function solve(A, b) {
     var n = b.length;
     var M = A.map(function (row, i) { return row.concat([b[i]]); });
@@ -218,8 +268,11 @@
     var dark = new Uint8Array(w * h);
     for (var i = 0; i < gray.length; i++) dark[i] = gray[i] < thr ? 1 : 0;
 
-    var found = findAnchors(dark, w, h, opts);
-    if (!found.ok) return { ok: false, reason: found.reason, grayThreshold: thr, candidates: found.candidates, anchors: found.anchors };
+    var mode = matrix.alignment === 'frame' ? 'frame' : 'anchors';
+    var found = mode === 'frame'
+      ? findFrameAnchors(dark, w, h, matrix, opts)
+      : findAnchors(dark, w, h, opts);
+    if (!found.ok) return { ok: false, reason: found.reason, grayThreshold: thr, candidates: found.candidates, anchors: found.anchors, bounds: found.bounds, aspect: found.aspect, expected: found.expected };
 
     var byId = {};
     found.anchors.forEach(function (a) { byId[a.id] = a; });
@@ -287,12 +340,17 @@
       if (prova.tens !== null && prova.units !== null) prova.number = prova.tens * 10 + prova.units;
     }
 
+    var ppm = found.mode === 'frame'
+      ? found.pixelsPerMm * invScale
+      : found.anchors.reduce(function (s, a) { return s + a.side; }, 0) / 4 / 10 * invScale;
+
     return {
       ok: true,
+      mode: mode,
       grayThreshold: thr,
       scale: invScale,
       anchors: found.anchors.map(function (a) { return { id: a.id, x: a.x * invScale, y: a.y * invScale, side: a.side * invScale }; }),
-      ppm: found.anchors.reduce(function (s, a) { return s + a.side; }, 0) / 4 / 10 * invScale,
+      ppm: ppm,
       bubbles: outBubbles,
       answers: answers,
       prova: prova

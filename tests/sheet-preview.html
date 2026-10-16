@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Pré-visualização da folha (teste)</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #fff; }
+  .sheet { box-shadow: none !important; }
+</style>
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+<div id="stage"></div>
+<script src="../js/utils.js"></script>
+<script src="../src/core/template.js"></script>
+<script src="../src/core/template-legacy.js"></script>
+<script src="../js/detector.js"></script>
+<script src="../js/app.js"></script>
+<script>
+(function () {
+  'use strict';
+  var model = new URLSearchParams(location.search).get('model') || 'novo';
+  var legado = model === 'legado';
+  var tpl = legado ? window.OMR.buildLegacyTemplate() : window.OMR.buildTemplate();
+  var render = legado ? window.OMR.renderLegacySheet : window.OMR.renderSheet;
+  render(document.getElementById('stage'), tpl);
+  window.__SHEET_READY__ = true;
+})();
+</script>
+</body>
+</html>

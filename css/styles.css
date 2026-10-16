@@ -284,6 +284,73 @@ html, body {
   cursor: pointer;
 }
 
+/* ---- seletor de modelo ---- */
+
+.template-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4a5b73;
+}
+
+.template-picker select {
+  font: inherit;
+  font-weight: 600;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #c3cddb;
+  background: #f4f7fb;
+  color: var(--ui-fg);
+}
+
+/* ---- folha no layout oficial (Novo_gabarito.pdf) ---- */
+
+.legacy-frame,
+.legacy-line,
+.legacy-underline {
+  position: absolute;
+  background: var(--ink);
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+.legacy-frame {
+  background: transparent;
+  border: 0.4mm solid var(--ink);
+}
+
+.legacy-inst-box {
+  position: absolute;
+  border: 0.3mm solid var(--ink);
+}
+
+.legacy-label,
+.legacy-inst,
+.legacy-col-title,
+.legacy-q-number {
+  position: absolute;
+  line-height: 1;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.legacy-label { font-weight: 700; }
+.legacy-inst { font-weight: 500; }
+.legacy-col-title { font-weight: 800; }
+.legacy-q-number { font-weight: 700; font-size: 3.9mm; text-align: right; }
+
+.legacy-title {
+  position: absolute;
+  text-align: center;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.3mm;
+}
+
+.bubble-legacy { font-weight: 600; font-size: 2.9mm; }
+
 @media print {
   @page { size: A4; margin: 0; }
 

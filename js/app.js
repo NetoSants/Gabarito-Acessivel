@@ -91,10 +91,73 @@
     return sheet;
   }
 
+  /* ---------------- Folha no layout oficial (Novo_gabarito.pdf) ---------------- */
+
+  function legacyBox(item, cls) {
+    return U.el('div', {
+      class: cls,
+      style: U.abs({ left: mm(item.x), top: mm(item.y), width: mm(item.width), height: mm(item.height) })
+    });
+  }
+
+  function legacyText(item, cls, extra) {
+    var size = item.size * item.pt;
+    return U.el('div', {
+      class: cls,
+      text: item.text,
+      style: U.abs({ left: mm(item.x), top: mm(item.y), width: item.width ? mm(item.width) : 'auto' }) +
+        'font-size:' + mm(size) + ';' + (extra || '')
+    });
+  }
+
+  function renderLegacySheet(container, tpl) {
+    container.innerHTML = '';
+    var L = tpl.header;
+    var sheet = U.el('div', {
+      class: 'sheet sheet-legacy',
+      id: 'sheet',
+      style: 'width:' + mm(tpl.page.width) + ';height:' + mm(tpl.page.height) + ';'
+    });
+
+    sheet.appendChild(legacyBox(tpl.frame, 'legacy-frame'));
+    L.lines.forEach(function (ln) { sheet.appendChild(legacyBox(ln, 'legacy-line')); });
+    sheet.appendChild(legacyBox(L.instructionsBox, 'legacy-inst-box'));
+
+    L.labels.forEach(function (lb) { sheet.appendChild(legacyText(lb, 'legacy-label')); });
+
+    var ins = L.instructions;
+    ins.pt = tpl.pt;
+    ins.width = tpl.page.width - ins.x - 18;
+    sheet.appendChild(legacyText(ins, 'legacy-inst'));
+
+    var title = { text: L.title.text, x: 0, y: L.title.y, size: L.title.size, pt: tpl.pt, width: tpl.page.width };
+    sheet.appendChild(legacyText(title, 'legacy-title'));
+
+    tpl.columns.forEach(function (col) {
+      sheet.appendChild(legacyBox(col.underline, 'legacy-underline'));
+      sheet.appendChild(legacyText({ text: col.label, x: col.titleX, y: col.titleY, size: col.titleSize, pt: tpl.pt }, 'legacy-col-title'));
+    });
+
+    tpl.questions.forEach(function (q) {
+      sheet.appendChild(U.el('div', {
+        class: 'legacy-q-number',
+        text: ('0' + q.number).slice(-2),
+        style: U.abs({ left: mm(q.numberX - 1.7), top: mm(q.numberY - 2.3), width: mm(6) })
+      }));
+      q.bubbles.forEach(function (b) {
+        sheet.appendChild(bubble(b.x, b.y, tpl.bubbleDiameter, b.option, 'bubble-legacy'));
+      });
+    });
+
+    container.appendChild(sheet);
+    return sheet;
+  }
+
   /* ---------------- Leitor OMR ---------------- */
 
-  function initReader(template) {
-    var matrix = root.OMR.exportMatrix(template);
+  function initReader() {
+    var matrix = null;
+    var hasProvaField = true;
     var video = document.getElementById('video');
     var canvas = document.getElementById('reader-canvas');
     var snap = document.getElementById('btn-snap');
@@ -154,6 +217,8 @@
         var msgs = {
           ancoras_insuficientes: 'Não encontrei as 4 marcas de canto. Aproxime a folha e garanta que os 4 quadrados preto apareçam.',
           ancoras_quadrante: 'Enquadre a folha inteira com os 4 quadrados preto visíveis nos cantos.',
+          moldura_nao_encontrada: 'Não encontrei a moldura da folha. Enquadre a página inteira, com a borda preta visível e fundo claro.',
+          moldura_proporcao: 'A área escura detectada não tem a proporção da folha. Deixe só a folha no enquadramento (fundo claro).',
           homografia: 'Não consegui alinhar a folha. Tente uma foto mais reta e com boa luz.'
         };
         setStatus(msgs[res.reason] || ('Não foi possível ler (' + res.reason + ').'), 'error');
@@ -174,7 +239,10 @@
       setStatus('Leitura concluída.', 'ok');
 
       var head = U.el('div', { class: 'result-head' });
-      head.appendChild(U.el('h2', { text: prova !== null ? ('Prova nº ' + prova) : 'Prova nº não identificada' }));
+      var headTitle = prova !== null
+        ? ('Prova nº ' + prova)
+        : (hasProvaField ? 'Prova nº não identificada' : 'Folha sem campo de Nº de prova');
+      head.appendChild(U.el('h2', { text: headTitle }));
       head.appendChild(U.el('p', { text: answers.length + ' questões · ' + blank + ' em branco · ' + anul + ' anulada(s)' }));
       result.appendChild(head);
 
@@ -264,6 +332,25 @@
       };
       autoImg.src = autoScan;
     }
+
+    return {
+      setMatrix: function (m) {
+        matrix = m;
+        hasProvaField = !!(m.prova && m.prova.groups);
+        canvas.hidden = true;
+        result.innerHTML = '';
+        setStatus(m.alignment === 'frame'
+          ? 'Modelo oficial (sem marcas de canto): enquadre a folha inteira com a moldura preta visível.'
+          : 'Aguardando uma folha…');
+        root.__OMR_MATRIX__ = m;
+      },
+      reset: function () {
+        stopCamera();
+        canvas.hidden = true;
+        canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+        result.innerHTML = '';
+      }
+    };
   }
 
   /* ---------------- inicialização ---------------- */
@@ -281,12 +368,44 @@
     });
   }
 
+  var MODELS = {
+    novo: {
+      label: 'Novo (com âncoras)',
+      build: function () { return root.OMR.buildTemplate(); },
+      render: renderSheet
+    },
+    legado: {
+      label: 'Oficial (Novo_gabarito.pdf)',
+      build: function () { return root.OMR.buildLegacyTemplate(); },
+      render: renderLegacySheet
+    }
+  };
+
   function init() {
     var stage = document.getElementById('stage');
     if (!stage || !root.OMR || !root.OMR.buildTemplate) return;
 
-    var template = root.OMR.buildTemplate();
-    renderSheet(stage, template);
+    var reader = root.OMR.detect ? initReader() : null;
+    var template = null;
+
+    function apply(key) {
+      var model = MODELS[key] || MODELS.novo;
+      template = model.build();
+      model.render(stage, template);
+      if (reader) reader.setMatrix(root.OMR.exportMatrix(template));
+    }
+
+    apply('novo');
+
+    var select = document.getElementById('template-select');
+    if (select) select.addEventListener('change', function () { apply(select.value); });
+
+    var qs = new URLSearchParams(location.search);
+    var initial = qs.get('model');
+    if (initial && MODELS[initial]) {
+      if (select) select.value = initial;
+      apply(initial);
+    }
 
     var btnPrint = document.getElementById('btn-print');
     if (btnPrint) btnPrint.addEventListener('click', function () { window.print(); });
@@ -299,7 +418,6 @@
     }
 
     initTabs();
-    if (root.OMR.detect) initReader(template);
 
     if (new URLSearchParams(location.search).get('scan')) {
       var tabRead = document.getElementById('tab-read');
@@ -315,4 +433,5 @@
 
   root.OMR = root.OMR || {};
   root.OMR.renderSheet = renderSheet;
+  root.OMR.renderLegacySheet = renderLegacySheet;
 })(typeof window !== 'undefined' ? window : this);
